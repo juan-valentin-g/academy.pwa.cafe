@@ -1,0 +1,134 @@
+﻿*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body{
+    background-color: bisque;
+    font-family: "Nunito", sans-serif;
+    font-size: 1rem;
+}
+main{
+    max-width: 900px;
+    margin: auto;
+    padding: 0.5rem;
+    text-align: center;
+}
+nav{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+ul{
+    list-style: none;
+    display: flex;
+}
+li{
+    margin-right: 1rem;
+}
+h1{
+    color: #1f66c4;
+    margin-bottom: 0.5rem;
+}
+
+.container{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.card{
+    min-width: 0;
+    overflow: hidden;
+    background-color: #fff;
+    border-radius: 0.75rem;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+
+.card__image{
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.card__caption{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    text-align: left;
+}
+
+.card__title{
+    color: #1f66c4;
+    font-weight: 700;
+}
+
+.card__number{
+    color: #555;
+    font-size: 0.875rem;
+}
+
+.boton{
+    display: inline-block;
+    padding: 0.75rem 1.25rem;
+    border: 2px solid #1f66c4;
+    border-radius: 0.5rem;
+    background-color: #1f66c4;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.boton:hover{
+    background-color: #fff;
+    color: #1f66c4;
+}
+
+.boton:focus-visible{
+    outline: 3px solid #1f66c4;
+    outline-offset: 3px;
+}
+
+.card__button{
+    margin: 0 1rem 1rem;
+}
+
+.detalle__back{
+    margin-top: 1.5rem;
+}
+
+.detalle{
+    margin-top: 1rem;
+    text-align: left;
+}
+
+.detalle__image{
+    display: block;
+    width: 100%;
+    max-height: 420px;
+    object-fit: contain;
+}
+
+.detalle__content{
+    padding: 1.5rem;
+}
+
+.detalle__title{
+    color: #1f66c4;
+    margin-bottom: 1rem;
+}
+
+.detalle__content p{
+    color: #555;
+    line-height: 1.7;
+}
+
+.detalle__content p + p{
+    margin-top: 1rem;
+}
