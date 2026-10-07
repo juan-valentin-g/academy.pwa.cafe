@@ -1,7 +1,7 @@
 // Incrementa la version cuando cambies los archivos de la aplicacion.
 // Este archivo debe registrarse desde la pagina para poder funcionar.
 const CACHE_PREFIX = `dev-coffe:${self.registration.scope}:`;
-const CACHE_NAME = `${CACHE_PREFIX}v3`;
+const CACHE_NAME = `${CACHE_PREFIX}v4`;
 const APP_URL = new URL("index.html", self.registration.scope).href;
 const DETAIL_URL = new URL("detalle.html", self.registration.scope).href;
 const ASSETS = [
