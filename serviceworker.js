@@ -1,7 +1,7 @@
 // Incrementa la version cuando cambies los archivos de la aplicacion.
 // Este archivo debe registrarse desde la pagina para poder funcionar.
 const CACHE_PREFIX = `dev-coffe:${self.registration.scope}:`;
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v5`;
 const APP_URL = new URL("index.html", self.registration.scope).href;
 const DETAIL_URL = new URL("detalle.html", self.registration.scope).href;
 const ASSETS = [
@@ -13,12 +13,13 @@ const ASSETS = [
     ...Array.from({ length: 9 }, (_, i) => `imagenes/imagen${i + 1}.jpg`),
     "imagenes/imagen10.JPG",
     ...[72, 96, 128, 144, 152, 192, 384, 512].map(
-        (size) => `imagenes/icons/icon-${size}x${size}.png`
+        (size) => `imagenes/icons/icon-${size}x${size}.png?v=5`
     ),
 ].map((path) => new URL(path, self.registration.scope).href);
 const ASSET_URLS = new Set(ASSETS);
 
 // Guarda tambien las fotos con carga diferida antes de habilitar el modo offline.
+// Instalacion(Precarga de recursos estaticos.)
 self.addEventListener("install", (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
@@ -50,7 +51,7 @@ self.addEventListener("fetch", (event) => {
         return;
     }
 
-    // La pagina intenta usar la red; sin conexion, abre la copia local.
+    // Cache-first: devuelve la copia local y solo consulta la red si no existe.
     const isAppPage = request.mode === "navigate" &&
         (url.pathname === new URL(APP_URL).pathname ||
          url.pathname === new URL(DETAIL_URL).pathname ||
@@ -58,12 +59,22 @@ self.addEventListener("fetch", (event) => {
 
     if (isAppPage) {
         event.respondWith((async () => {
+            const cache = await caches.open(CACHE_NAME);
+            const page = url.pathname === new URL(DETAIL_URL).pathname ? DETAIL_URL : APP_URL;
+            const cachedResponse = await cache.match(page);
+
+            if (cachedResponse) {
+                return cachedResponse;
+            }
+
             try {
-                return await fetch(request);
+                const response = await fetch(request);
+                if (response.ok) {
+                    await cache.put(page, response.clone());
+                }
+                return response;
             } catch {
-                const cache = await caches.open(CACHE_NAME);
-                const page = url.pathname === new URL(DETAIL_URL).pathname ? DETAIL_URL : APP_URL;
-                return (await cache.match(page)) || Response.error();
+                return Response.error();
             }
         })());
         return;
@@ -73,20 +84,21 @@ self.addEventListener("fetch", (event) => {
     if (ASSET_URLS.has(url.href)) {
         event.respondWith((async () => {
             const cache = await caches.open(CACHE_NAME);
-            // Consulta los estilos y el código actuales; conserva una copia offline.
-            if (url.pathname.endsWith("/css/style.css") || url.pathname.endsWith("/js/app.js")) {
-                try {
-                    const response = await fetch(new Request(request, { cache: "no-cache" }));
-                    if (response.ok) {
-                        await cache.put(request, response.clone());
-                        return response;
-                    }
-                    return (await cache.match(request)) || response;
-                } catch {
-                    return (await cache.match(request)) || Response.error();
-                }
+            const cachedResponse = await cache.match(request);
+
+            if (cachedResponse) {
+                return cachedResponse;
             }
-            return (await cache.match(request)) || fetch(request);
+
+            try {
+                const response = await fetch(request);
+                if (response.ok) {
+                    await cache.put(request, response.clone());
+                }
+                return response;
+            } catch {
+                return Response.error();
+            }
         })());
     }
 });
