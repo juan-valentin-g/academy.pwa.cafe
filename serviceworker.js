@@ -1,32 +1,14 @@
 // Incrementa la version cuando cambies los archivos de la aplicacion.
 // Este archivo debe registrarse desde la pagina para poder funcionar.
 const CACHE_PREFIX = `dev-coffe:${self.registration.scope}:`;
-const CACHE_NAME = `${CACHE_PREFIX}v6`;
+const CACHE_NAME = `${CACHE_PREFIX}v7`;
 const APP_URL = new URL("index.html", self.registration.scope).href;
 const DETAIL_URL = new URL("detalle.html", self.registration.scope).href;
-const ASSETS = [
-    "index.html",
-    "detalle.html",
-    "css/style.css?v=3",
-    "js/app.js?v=4",
-    "manifest.json",
-    ...Array.from({ length: 9 }, (_, i) => `imagenes/imagen${i + 1}.jpg`),
-    "imagenes/imagen10.JPG",
-    ...[72, 96, 128, 144, 152, 192, 384, 512].map(
-        (size) => `imagenes/icons/icon-${size}x${size}.png?v=5`
-    ),
-].map((path) => new URL(path, self.registration.scope).href);
-const ASSET_URLS = new Set(ASSETS);
+const SCOPE_PATH = new URL(self.registration.scope).pathname;
 
-// Guarda tambien las fotos con carga diferida antes de habilitar el modo offline.
-// Instalacion(Precarga de recursos estaticos.)
+// Sin precarga: solo se guardan los recursos solicitados durante la navegacion.
 self.addEventListener("install", (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then(async (cache) => {
-            await cache.addAll(ASSETS.map((url) => new Request(url, { cache: "reload" })));
-            await self.skipWaiting();
-        })
-    );
+    event.waitUntil(self.skipWaiting());
 });
 
 // Activa la nueva version sin tener que cerrar las pestañas de Live Server.
@@ -43,7 +25,8 @@ self.addEventListener("activate", (event) => {
 });
 
 // Un fallo de almacenamiento no debe convertir una respuesta de red en un error.
-async function cacheFirst(request, cacheKey = request) {
+async function cacheFirst(event, cacheKey = event.request) {
+    const request = event.request;
     let cache;
     try {
         cache = await caches.open(CACHE_NAME);
@@ -57,11 +40,10 @@ async function cacheFirst(request, cacheKey = request) {
 
     const response = await fetch(request);
     if (response.ok && cache) {
-        try {
-            await cache.put(cacheKey, response.clone());
-        } catch (error) {
+        // Entrega la respuesta sin esperar a que termine la escritura en disco.
+        event.waitUntil(cache.put(cacheKey, response.clone()).catch((error) => {
             console.warn("No se pudo guardar el recurso en caché:", error);
-        }
+        }));
     }
     return response;
 }
@@ -71,6 +53,7 @@ self.addEventListener("fetch", (event) => {
     const url = new URL(request.url);
 
     if (request.method !== "GET" || url.origin !== self.location.origin ||
+        !url.pathname.startsWith(SCOPE_PATH) ||
         request.headers.has("range")) {
         return;
     }
@@ -83,12 +66,21 @@ self.addEventListener("fetch", (event) => {
 
     if (isAppPage) {
         const page = url.pathname === new URL(DETAIL_URL).pathname ? DETAIL_URL : APP_URL;
-        event.respondWith(cacheFirst(request, page));
+        // El HTML de detalle es comun; los datos de cada cafe tienen su propia URL.
+        event.respondWith(cacheFirst(event, page).catch(() => new Response(
+            '<!doctype html><html lang="es"><meta charset="utf-8">' +
+            '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+            '<title>Sin conexión</title><h1>Esta página aún no está guardada</h1>' +
+            '<p>Conéctate a internet para abrirla por primera vez.</p>' +
+            '<a href="./index.html">Volver a la galería</a></html>',
+            { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } }
+        )));
         return;
     }
 
-    // Solo se interceptan los recursos de esta app, sin almacenar otras rutas.
-    if (ASSET_URLS.has(url.href)) {
-        event.respondWith(cacheFirst(request));
+    // Cache dinamica para recursos de la app; no se guarda el propio worker.
+    const path = url.pathname.slice(SCOPE_PATH.length);
+    if (/^(css\/|js\/|imagenes\/|data\/cafes\/)/.test(path) || path === "manifest.json") {
+        event.respondWith(cacheFirst(event));
     }
 });
