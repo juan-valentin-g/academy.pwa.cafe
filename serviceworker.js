@@ -1,14 +1,14 @@
 // Incrementa la version cuando cambies los archivos de la aplicacion.
 // Este archivo debe registrarse desde la pagina para poder funcionar.
 const CACHE_PREFIX = `dev-coffe:${self.registration.scope}:`;
-const CACHE_NAME = `${CACHE_PREFIX}v5`;
+const CACHE_NAME = `${CACHE_PREFIX}v6`;
 const APP_URL = new URL("index.html", self.registration.scope).href;
 const DETAIL_URL = new URL("detalle.html", self.registration.scope).href;
 const ASSETS = [
     "index.html",
     "detalle.html",
     "css/style.css?v=3",
-    "js/app.js?v=3",
+    "js/app.js?v=4",
     "manifest.json",
     ...Array.from({ length: 9 }, (_, i) => `imagenes/imagen${i + 1}.jpg`),
     "imagenes/imagen10.JPG",
@@ -42,6 +42,30 @@ self.addEventListener("activate", (event) => {
     })());
 });
 
+// Un fallo de almacenamiento no debe convertir una respuesta de red en un error.
+async function cacheFirst(request, cacheKey = request) {
+    let cache;
+    try {
+        cache = await caches.open(CACHE_NAME);
+        const cachedResponse = await cache.match(cacheKey);
+        if (cachedResponse) {
+            return cachedResponse;
+        }
+    } catch (error) {
+        console.warn("No se pudo consultar la caché:", error);
+    }
+
+    const response = await fetch(request);
+    if (response.ok && cache) {
+        try {
+            await cache.put(cacheKey, response.clone());
+        } catch (error) {
+            console.warn("No se pudo guardar el recurso en caché:", error);
+        }
+    }
+    return response;
+}
+
 self.addEventListener("fetch", (event) => {
     const request = event.request;
     const url = new URL(request.url);
@@ -58,47 +82,13 @@ self.addEventListener("fetch", (event) => {
          url.pathname === new URL(self.registration.scope).pathname);
 
     if (isAppPage) {
-        event.respondWith((async () => {
-            const cache = await caches.open(CACHE_NAME);
-            const page = url.pathname === new URL(DETAIL_URL).pathname ? DETAIL_URL : APP_URL;
-            const cachedResponse = await cache.match(page);
-
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-
-            try {
-                const response = await fetch(request);
-                if (response.ok) {
-                    await cache.put(page, response.clone());
-                }
-                return response;
-            } catch {
-                return Response.error();
-            }
-        })());
+        const page = url.pathname === new URL(DETAIL_URL).pathname ? DETAIL_URL : APP_URL;
+        event.respondWith(cacheFirst(request, page));
         return;
     }
 
     // Solo se interceptan los recursos de esta app, sin almacenar otras rutas.
     if (ASSET_URLS.has(url.href)) {
-        event.respondWith((async () => {
-            const cache = await caches.open(CACHE_NAME);
-            const cachedResponse = await cache.match(request);
-
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-
-            try {
-                const response = await fetch(request);
-                if (response.ok) {
-                    await cache.put(request, response.clone());
-                }
-                return response;
-            } catch {
-                return Response.error();
-            }
-        })());
+        event.respondWith(cacheFirst(request));
     }
 });

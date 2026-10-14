@@ -177,12 +177,23 @@ if (detalle) {
     }
 }
 
-// Registra el service worker al terminar de cargar la pagina.
+// El script esta al final del HTML: no es necesario esperar a todas las imagenes.
 if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./serviceworker.js").catch((error) => {
-            console.error("No se pudo registrar el service worker:", error);
-        });
+    // Al activar una actualizacion, vuelve a cargar la pagina desde la nueva cache.
+    // La primera instalacion no necesita recargar.
+    const wasControlled = Boolean(navigator.serviceWorker.controller);
+    let reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (wasControlled && !reloading) {
+            reloading = true;
+            window.location.reload();
+        }
+    });
+    navigator.serviceWorker.register("./serviceworker.js", {
+        scope: "./",
+        updateViaCache: "none",
+    }).catch((error) => {
+        console.error("No se pudo registrar el service worker:", error);
     });
 }
 
